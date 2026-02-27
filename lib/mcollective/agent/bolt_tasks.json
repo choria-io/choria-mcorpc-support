@@ -38,7 +38,7 @@
           "default": null,
           "optional": false,
           "validation": "\\A\\[.+\\]\\z",
-          "maxlength": 4000
+          "maxlength": 20000
         }
       },
       "output": {
@@ -91,7 +91,7 @@
           "default": null,
           "optional": false,
           "validation": "\\A\\[.+\\]\\z",
-          "maxlength": 4000
+          "maxlength": 20000
         },
         "input": {
           "prompt": "Task Input",
@@ -232,7 +232,7 @@
           "default": null,
           "optional": false,
           "validation": "\\A\\[.+\\]\\z",
-          "maxlength": 4000
+          "maxlength": 20000
         },
         "input": {
           "prompt": "Task Input",
