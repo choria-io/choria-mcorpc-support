@@ -32,7 +32,7 @@ action "download", :description => "Downloads a Puppet Task into a local cache" 
         :type        => :string,
         :optional    => false,
         :validation  => '\A\[.+\]\z',
-        :maxlength   => 4000
+        :maxlength   => 20000
 
   output :downloads,
          :description => "The number of files downloaded",
@@ -66,7 +66,7 @@ action "run_and_wait", :description => "Runs a Puppet Task that was previously d
         :type        => :string,
         :optional    => false,
         :validation  => '\A\[.+\]\z',
-        :maxlength   => 4000
+        :maxlength   => 20000
 
   input :input,
         :prompt      => "Task Input",
@@ -163,7 +163,7 @@ action "run_no_wait", :description => "Runs a Puppet Task that was previously do
         :type        => :string,
         :optional    => false,
         :validation  => '\A\[.+\]\z',
-        :maxlength   => 4000
+        :maxlength   => 20000
 
   input :input,
         :prompt      => "Task Input",
