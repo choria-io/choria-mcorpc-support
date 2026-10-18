@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
   s.bindir = "bin"
   s.executables = ["mco"]
   s.add_dependency "systemu", "~> 2.6", ">= 2.6.4"
-  s.add_dependency "nats-pure", "~> 0.6", "< 0.7.0"
+  s.add_dependency "nats-pure", ">= 0.6", "< 3.0.0"
   s.add_dependency "base64"
   s.add_dependency "logger"
 end
