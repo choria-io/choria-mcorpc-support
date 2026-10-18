@@ -6,7 +6,11 @@ AllCops:
   Exclude:
     - "module/**/*"
     - "vendor/**/*"
-    - "spec/fixtures/**/*"
+    - "spec/**/*"
+    - "choria-mcorpc-support.gemspec"
+    - "Rakefile"
+    - "bin/*"
+    - "Gemfile"
 
 # restore pre 0.45 behaviour
 Style/SingleLineBlockParams:

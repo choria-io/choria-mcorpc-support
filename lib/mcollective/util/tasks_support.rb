@@ -81,7 +81,7 @@ module MCollective
 
           legacy_puppet = File.join(aio_bin_path, "execution_wrapper.exe")
           return legacy_puppet if File.exist?(legacy_puppet)
-          
+
           File.join(aio_bin_path, "execution_wrapper.bat")
         else
           legacy = File.join(aio_bin_path, "task_wrapper")

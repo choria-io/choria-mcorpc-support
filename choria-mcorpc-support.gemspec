@@ -23,4 +23,6 @@ Gem::Specification.new do |s|
   s.add_dependency "nats-pure", "~> 0.6", "< 0.7.0"
   s.add_dependency "base64"
   s.add_dependency "logger"
+
+  s.required_ruby_version = Gem::Requirement.new('>= 3.1')
 end
