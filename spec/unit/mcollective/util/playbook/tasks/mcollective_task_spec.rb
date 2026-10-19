@@ -1,5 +1,6 @@
 require "spec_helper"
 require "mcollective/util/playbook"
+require "jgrep"
 
 module MCollective
   module Util
@@ -167,6 +168,18 @@ module MCollective
               )
 
               expect(task.assert_replies(replies)).to eq([true, 0])
+            end
+
+            it "should log the assertion and the error when the match raises" do
+              task.from_hash(
+                "action" => "puppet.status",
+                "assert" => "x=1"
+              )
+
+              JGrep.expects(:jgrep).raises(RuntimeError, "rspec jgrep failure")
+              Log.expects(:error).with("Assertion 'x=1' could not be matched: RuntimeError: rspec jgrep failure")
+
+              expect(task.assert_replies(replies)).to eq([false, 3])
             end
           end
 

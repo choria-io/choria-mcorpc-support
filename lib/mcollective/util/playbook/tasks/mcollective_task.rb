@@ -287,8 +287,9 @@ module MCollective
             begin
               Log.debug("Asserting '%s' over %d replies" % [@assertion, replies.size])
               result = JGrep.jgrep(jdata, @assertion)
-            rescue
-              Log.error("Assertion '%s' could not be matched: %s" % [@asssertion, expected])
+            rescue => e
+              Log.error("Assertion '%s' could not be matched: %s: %s" % [@assertion, e.class, e.to_s])
+              Log.debug(e.backtrace.join("\t\n"))
             end
 
             [result.size == expected, expected - result.size]
