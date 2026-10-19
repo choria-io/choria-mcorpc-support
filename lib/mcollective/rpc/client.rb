@@ -80,7 +80,8 @@ module MCollective
         @collective = @client.collective
         @ttl = initial_options[:ttl] || Config.instance.ttl
         @publish_timeout = initial_options[:publish_timeout] || Config.instance.publish_timeout
-        @threaded = initial_options[:threaded] || Config.instance.threaded
+        # an option given as false wins over the configuration, one absent or nil leaves it to the configuration
+        @threaded = initial_options[:threaded].nil? ? Config.instance.threaded : initial_options[:threaded]
 
         # if we can find a DDL for the service override
         # the timeout of the client so we always magically
