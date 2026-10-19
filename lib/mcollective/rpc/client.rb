@@ -349,6 +349,103 @@ module MCollective
         end
       end
 
+      # Calls an action with arguments that differ per node, in one request
+      #
+      # args_by_node maps each node's identity to the arguments it gets.
+      # Every node receives a direct request with its own arguments under
+      # one request id, published together and awaited together, so nodes
+      # with distinct arguments cost one round trip rather than one each.
+      # Batch mode applies as in call_agent_batched, batch_size nodes at a
+      # time with batch_sleep_time between batches.
+      #
+      # Results, stats and the block behave as for call_agent.
+      def per_node_request(action, args_by_node, &block) # rubocop:disable Metrics/MethodLength
+        raise "Per node requests require direct addressing" unless Config.instance.direct_addressing
+
+        args_by_node.each_value {|args| validate_request(action, args)}
+
+        @stats.reset
+        @stats.discovered_agents(args_by_node.keys)
+        @force_direct_request = true
+
+        results = []
+        respcount = 0
+
+        if args_by_node.empty?
+          @stderr.print("\nNo request sent, no nodes were given.")
+        else
+          opts = options
+          flags = {:agent => @agent, :type => :direct_request, :collective => @collective, :filter => opts[:filter], :options => opts}
+          aggregate = load_aggregate_functions(action, @ddl)
+
+          if @progress && !block_given?
+            twirl = Progress.new
+            @stdout.puts
+            @stdout.print twirl.twirl(respcount, args_by_node.size)
+          end
+
+          batch_size = @batch_mode ? batch_size_for(@batch_size, args_by_node.size) : args_by_node.size
+          @stats.requestid = nil
+          processed_nodes = 0
+
+          args_by_node.keys.each_slice(batch_size) do |hosts|
+            messages = hosts.map do |host|
+              message = Message.new(new_request(action.to_s, args_by_node[host]), nil, flags)
+
+              # the first message creates the request id the rest share, as batched calls do
+              @stats.requestid = message.create_reqid unless @stats.requestid
+              message.requestid = @stats.requestid
+              message.discovered_hosts = [host]
+              message
+            end
+
+            @client.req(messages) do |resp|
+              respcount += 1
+
+              if block_given?
+                aggregate = process_results_with_block(action, resp, block, aggregate)
+              else
+                @stdout.print twirl.twirl(respcount, args_by_node.size) if @progress
+
+                result, aggregate = process_results_without_block(resp, action, aggregate)
+
+                results << result
+              end
+            end
+
+            @stats.noresponsefrom.concat @client.stats[:noresponsefrom]
+            @stats.unexpectedresponsefrom.concat @client.stats[:unexpectedresponsefrom]
+            @stats.responses += @client.stats[:responses]
+            @stats.blocktime += @client.stats[:blocktime]
+            @stats.totaltime += @client.stats[:totaltime]
+            @stats.discoverytime += @client.stats[:discoverytime]
+
+            processed_nodes += hosts.length
+            if args_by_node.size > processed_nodes
+              @stats.blocktime += @batch_sleep_time
+              sleep @batch_sleep_time
+            end
+          end
+
+          results.sort! if @initial_options[:sort]
+
+          @stats.aggregate_summary = aggregate.summarize if aggregate
+          @stats.aggregate_failures = aggregate.failed if aggregate
+        end
+
+        @stats.finish_request
+
+        RPC.stats(@stats)
+
+        @stdout.print("\n") if @progress
+
+        if block_given?
+          stats
+        else
+          [results].flatten
+        end
+      end
+
       def discovery_timeout
         return @discovery_timeout if @discovery_timeout
 
@@ -1030,6 +1127,16 @@ module MCollective
         return true if batch_size != 0 && batch_size != "0"
 
         false
+      end
+
+      # The batch size as a count of nodes, from a count or a percentage of
+      # the nodes given, as call_agent_batched reads it
+      def batch_size_for(batch_size, node_count)
+        if batch_size.is_a?(String) && batch_size =~ /^(\d+)%$/
+          (node_count / 100.0 * Integer($1)).ceil
+        else
+          Integer(batch_size)
+        end
       end
 
       # Validate the bach_size based on the following criteria

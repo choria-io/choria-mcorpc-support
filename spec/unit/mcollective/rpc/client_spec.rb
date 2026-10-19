@@ -890,6 +890,65 @@ module MCollective
         end
       end
 
+      describe "#per_node_request" do
+        before do
+          # These stat keys must match the values returned by a generic Client
+          stats = {:noresponsefrom => [], :unexpectedresponsefrom => [], :responses => 0, :blocktime => 0, :totaltime => 0, :discoverytime => 0, :requestid => "823a3419a0975c3facbde121f72ab61f"}
+
+          @coreclient.stubs(:stats).returns(stats)
+        end
+
+        it "should require direct addressing" do
+          Config.instance.stubs(:direct_addressing).returns(false)
+
+          expect { @client.per_node_request("rspec", {"one" => {}}) }.to raise_error("Per node requests require direct addressing")
+        end
+
+        it "should validate the arguments of every node" do
+          @client.expects(:validate_request).with("rspec", {:a => 1})
+          @client.expects(:validate_request).with("rspec", {:a => 2}).raises("spec pass")
+
+          expect { @client.per_node_request("rspec", {"one" => {:a => 1}, "two" => {:a => 2}}) }.to raise_error("spec pass")
+        end
+
+        it "should send every node its own arguments under one request id and receive the replies together" do
+          one = mock
+          one.expects(:create_reqid).returns("823a3419a0975c3facbde121f72ab61f")
+          one.expects(:requestid=).with("823a3419a0975c3facbde121f72ab61f")
+          one.expects(:discovered_hosts=).with(["one"])
+
+          two = mock
+          two.expects(:requestid=).with("823a3419a0975c3facbde121f72ab61f")
+          two.expects(:discovered_hosts=).with(["two"])
+
+          @client.expects(:new_request).with("rspec", {:a => 1}).returns("req one")
+          @client.expects(:new_request).with("rspec", {:a => 2}).returns("req two")
+          Message.expects(:new).with { |req, _, flags| req == "req one" && flags[:type] == :direct_request && flags[:agent] == "foo" }.returns(one)
+          Message.expects(:new).with { |req, _, flags| req == "req two" && flags[:type] == :direct_request && flags[:agent] == "foo" }.returns(two)
+          @coreclient.expects(:req).with([one, two]).multiple_yields(["reply one"], ["reply two"])
+          @client.expects(:process_results_without_block).with("reply one", "rspec", nil).returns("one")
+          @client.expects(:process_results_without_block).with("reply two", "rspec", nil).returns("two")
+
+          expect(@client.per_node_request("rspec", {"one" => {:a => 1}, "two" => {:a => 2}})).to eq(["one", "two"])
+          expect(@client.stats[:requestid]).to eq("823a3419a0975c3facbde121f72ab61f")
+        end
+
+        it "should batch the nodes by the batch size and sleep between batches" do
+          msg = mock
+          msg.stubs(:create_reqid).returns("823a3419a0975c3facbde121f72ab61f")
+          msg.stubs(:requestid=)
+          msg.stubs(:discovered_hosts=)
+
+          @client.batch_size = 1
+          @client.stubs(:new_request).returns("req")
+          Message.stubs(:new).returns(msg)
+          @coreclient.expects(:req).with([msg]).twice
+          @client.expects(:sleep).with(1.0).once
+
+          expect(@client.per_node_request("rspec", {"one" => {}, "two" => {}})).to eq([])
+        end
+      end
+
       describe "#batch_sleep_time=" do
         it "should correctly set the sleep" do
           Config.instance.stubs(:direct_addressing).returns(true)

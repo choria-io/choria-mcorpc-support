@@ -205,26 +205,37 @@ module MCollective
 
       it "should thread the publisher and receiver if configured" do
         client.instance_variable_get(:@options)[:threaded] = true
-        client.expects(:threaded_req).with(request, 2, 0, ['rspec'])
+        client.expects(:threaded_req).with([request], 2, 0, ['rspec'])
         message.options[:threaded] = true
         client.req(message)
       end
 
       it "should not thread the publisher and receiver if configured" do
         client.instance_variable_set(:@threaded, false)
-        client.expects(:unthreaded_req).with(request, 2, 0, ['rspec'])
+        client.expects(:unthreaded_req).with([request], 2, 0, ['rspec'])
         client.req(message)
       end
 
       it "uses the publish_timeout from options when passed as an option" do
-        client.expects(:unthreaded_req).with(request, 5, 0, ['rspec'])
+        client.expects(:unthreaded_req).with([request], 5, 0, ['rspec'])
         client.req(message, nil, message.options.merge(:publish_timeout => 5))
       end
 
       it "uses the publish_timeout from config when passed as a config value" do
-        client.expects(:unthreaded_req).with(request, 10, 0, ['rspec'])
+        client.expects(:unthreaded_req).with([request], 10, 0, ['rspec'])
         client.instance_variable_get(:@config).expects(:publish_timeout).returns(10)
         client.req(message)
+      end
+
+      it "should publish several messages sharing a request id and receive their replies together" do
+        second = Message.new("rspec", nil, {:agent => "rspec",
+                                            :type => :direct_request,
+                                            :collective => "mcollective",
+                                            :filter => Util.empty_filter,
+                                            :options => Util.default_options})
+        second.discovered_hosts = ["other"]
+        client.expects(:unthreaded_req).with([request, request], 2, 0, ["rspec", "other"])
+        client.req([message, second])
       end
     end
 
@@ -232,9 +243,9 @@ module MCollective
       it "should start a publisher and then start a receiver" do
         request = mock
         request.stubs(:requestid).returns("erfs123")
-        client.expects(:start_publisher).with(request, 5)
+        client.expects(:start_publisher).with([request], 5)
         client.expects(:start_receiver).with("erfs123", 2, 10)
-        client.unthreaded_req(request, 5, 10, 2)
+        client.unthreaded_req([request], 5, 10, 2)
       end
     end
 
@@ -246,10 +257,10 @@ module MCollective
         r_thread = mock
         Thread.expects(:new).yields.returns(p_thread)
         Thread.expects(:new).yields.returns(r_thread)
-        client.expects(:start_publisher).with(request, 5)
+        client.expects(:start_publisher).with([request], 5)
         client.expects(:start_receiver).with("erfs123", 2, 15).returns(2)
         p_thread.expects(:join)
-        result = client.threaded_req(request, 5, 10, 2)
+        result = client.threaded_req([request], 5, 10, 2)
         expect(result).to eq(2)
       end
     end
@@ -267,13 +278,25 @@ module MCollective
       it "should publish the message" do
         Timeout.stubs(:timeout).with(2).yields
         message.expects(:publish)
-        client.start_publisher(message, 2)
+        client.start_publisher([message], 2)
+      end
+
+      it "should publish every message within the one timeout" do
+        other = mock
+        other.stubs(:requestid)
+        other.stubs(:agent)
+        other.stubs(:ttl)
+        other.stubs(:collective)
+        Timeout.stubs(:timeout).with(2).yields
+        message.expects(:publish)
+        other.expects(:publish)
+        client.start_publisher([message, other], 2)
       end
 
       it "should log a warning on a timeout" do
         Timeout.stubs(:timeout).with(2).raises(Timeout::Error)
         Log.expects(:warn).with("Could not publish all messages. Publishing timed out.")
-        client.start_publisher(message,2)
+        client.start_publisher([message], 2)
       end
     end
 

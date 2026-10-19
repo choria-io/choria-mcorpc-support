@@ -160,19 +160,26 @@ module MCollective
     #   pp resp
     # }
     #
+    # A Message can stand in for the body, or an Array of Messages that
+    # share one request id, each addressed to its own node with its own
+    # body, which are published together and whose replies are received
+    # together as one request.
+    #
     # It returns a hash of times and timeouts for discovery and total run is taken from the options
     # hash which in turn is generally built using MCollective::Optionparser
     def req(body, agent=nil, options=false, waitfor=[], &block)
-      if body.is_a?(Message)
-        agent = body.agent
-        waitfor = body.discovered_hosts || []
-        @options = body.options
+      bodies = body.is_a?(Array) ? body : [body]
+
+      if bodies.first.is_a?(Message)
+        agent = bodies.first.agent
+        waitfor = bodies.map {|message| message.discovered_hosts || []}.flatten
+        @options = bodies.first.options
       end
 
       @options = options if options
       threaded = @options[:threaded]
       timeout = @discoverer.discovery_timeout(@options[:timeout], @options[:filter])
-      request = createreq(body, agent, @options[:filter])
+      requests = bodies.map {|message| createreq(message, agent, @options[:filter])}
       publish_timeout = @options[:publish_timeout] || @config.publish_timeout
       stat = {:starttime => Time.now.to_f, :discoverytime => 0, :blocktime => 0, :totaltime => 0}
       $stdout.sync = true
@@ -180,32 +187,34 @@ module MCollective
 
       begin
         if threaded
-          hosts_responded = threaded_req(request, publish_timeout, timeout, waitfor, &block)
+          hosts_responded = threaded_req(requests, publish_timeout, timeout, waitfor, &block)
         else
-          hosts_responded = unthreaded_req(request, publish_timeout, timeout, waitfor, &block)
+          hosts_responded = unthreaded_req(requests, publish_timeout, timeout, waitfor, &block)
         end
       rescue Interrupt # rubocop:disable Lint/SuppressedException
       ensure
         unsubscribe(agent, :reply)
       end
 
-      update_stat(stat, hosts_responded, request.requestid)
+      update_stat(stat, hosts_responded, requests.first.requestid)
     end
 
     # Starts the client receiver and publisher unthreaded.
     # This is the default client behaviour.
-    def unthreaded_req(request, publish_timeout, timeout, waitfor, &block)
-      start_publisher(request, publish_timeout)
-      start_receiver(request.requestid, waitfor, timeout, &block)
+    #
+    # The requests are an Array sharing one request id, as req builds them.
+    def unthreaded_req(requests, publish_timeout, timeout, waitfor, &block)
+      start_publisher(requests, publish_timeout)
+      start_receiver(requests.first.requestid, waitfor, timeout, &block)
     end
 
     # Starts the client receiver and publisher in threads.
     # This is activated when the 'threader_client' configuration
     # option is set.
-    def threaded_req(request, publish_timeout, timeout, waitfor, &block)
+    def threaded_req(requests, publish_timeout, timeout, waitfor, &block)
       Log.debug("Starting threaded client")
       Thread.new do
-        start_publisher(request, publish_timeout)
+        start_publisher(requests, publish_timeout)
       end
 
       # When the client is threaded we add the publishing timeout to
@@ -215,19 +224,20 @@ module MCollective
       hosts_responded = 0
 
       receiver = Thread.new do
-        hosts_responded = start_receiver(request.requestid, waitfor, total_timeout, &block)
+        hosts_responded = start_receiver(requests.first.requestid, waitfor, total_timeout, &block)
       end
 
       receiver.join
       hosts_responded
     end
 
-    # Starts the request publishing routine
-    def start_publisher(request, publish_timeout)
+    # Starts the request publishing routine for the requests, all within
+    # the one publish timeout
+    def start_publisher(requests, publish_timeout)
       Log.debug("Starting publishing with publish timeout of #{publish_timeout}")
       begin
         Timeout.timeout(publish_timeout) do
-          publish(request)
+          requests.each {|request| publish(request)}
         end
       rescue Timeout::Error
         Log.warn("Could not publish all messages. Publishing timed out.")
