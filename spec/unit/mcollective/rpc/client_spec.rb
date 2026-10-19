@@ -890,6 +890,54 @@ module MCollective
         end
       end
 
+      describe "#broadcast_request" do
+        it "should require at least one identity" do
+          expect { @client.broadcast_request("rspec", {}, []) }.to raise_error("A broadcast request needs at least one identity")
+        end
+
+        it "should send one request filtered to the identities and wait for them" do
+          @client.expects(:call_agent).with { |action, args, opts, disc, broadcast|
+            action == "rspec" && args == {} && opts[:filter]["identity"] == ["one", "two"] && disc == ["one", "two"] && broadcast == true
+          }.returns("rspec")
+
+          expect(@client.broadcast_request("rspec", {}, ["one", "two"])).to eq("rspec")
+        end
+      end
+
+      describe "#call_agent" do
+        before do
+          # These stat keys must match the values returned by a generic Client
+          stats = {:noresponsefrom => [], :unexpectedresponsefrom => [], :responses => 0, :blocktime => 0, :totaltime => 0, :discoverytime => 0, :requestid => "823a3419a0975c3facbde121f72ab61f"}
+
+          @client.expects(:new_request).returns("req")
+          @coreclient.stubs(:stats).returns(stats)
+        end
+
+        it "should force direct requests to the given nodes" do
+          msg = mock
+          msg.expects(:discovered_hosts=).with(["one", "two"])
+          msg.expects(:type=).with(:direct_request)
+          Message.expects(:new).with("req", nil, {:type => :request, :agent => "foo", :filter => nil, :options => {}, :collective => "mcollective"}).returns(msg)
+          @coreclient.expects(:req).with(msg)
+
+          @client.send(:call_agent, "rspec", {}, {}, ["one", "two"])
+
+          expect(@client.instance_variable_get("@force_direct_request")).to eq(true)
+        end
+
+        it "should keep a broadcast request to the given nodes as a broadcast" do
+          msg = mock
+          msg.expects(:discovered_hosts=).with(["one", "two"])
+          msg.expects(:type=).never
+          Message.expects(:new).with("req", nil, {:type => :request, :agent => "foo", :filter => nil, :options => {}, :collective => "mcollective"}).returns(msg)
+          @coreclient.expects(:req).with(msg)
+
+          @client.send(:call_agent, "rspec", {}, {}, ["one", "two"], true)
+
+          expect(@client.instance_variable_get("@force_direct_request")).to eq(false)
+        end
+      end
+
       describe "#batch_sleep_time=" do
         it "should correctly set the sleep" do
           Config.instance.stubs(:direct_addressing).returns(true)

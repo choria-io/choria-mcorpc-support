@@ -305,7 +305,7 @@ module MCollective
       # hash as a filter, this will force that request to be a directly addressed
       # request which technically does not need filters.  If you try to use this
       # mode with direct addressing disabled an exception will be raise
-      def custom_request(action, args, expected_agents, filter={}, &block)
+      def custom_request(action, args, expected_agents, filter={}, broadcast=false, &block)
         validate_request(action, args)
 
         if filter == {} && !Config.instance.direct_addressing
@@ -341,12 +341,32 @@ module MCollective
         # Now do a call pretty much exactly like in method_missing except with our own
         # options and discovery magic
         if block_given?
-          call_agent(action, args, custom_options, [expected_agents].flatten) do |r|
+          call_agent(action, args, custom_options, [expected_agents].flatten, broadcast) do |r|
             block.call(r)
           end
         else
-          call_agent(action, args, custom_options, [expected_agents].flatten)
+          call_agent(action, args, custom_options, [expected_agents].flatten, broadcast)
         end
+      end
+
+      # Sends one broadcast request to the identities given and waits for a
+      # reply from each of them
+      #
+      # custom_request with the same identities publishes one copy of the
+      # request per node, since it forces direct requests.  This publishes
+      # the request once with the identities as its filter, which nodes
+      # match by OR, so only those nodes act on it while every node
+      # subscribed to the agent receives it.  That trades the client's per
+      # node publishing for one delivery per subscribed node, which pays
+      # when a large request goes to many nodes.
+      #
+      # A list at or under the direct addressing threshold still goes out
+      # as direct requests, as Message#publish decides.
+      def broadcast_request(action, args, identities, &block)
+        identities = [identities].flatten
+        raise "A broadcast request needs at least one identity" if identities.empty?
+
+        custom_request(action, args, identities, {"identity" => identities}, true, &block)
       end
 
       def discovery_timeout
@@ -899,8 +919,10 @@ module MCollective
       # blocks, non blocks and everything else supported.
       #
       # Other methods of calling the nodes can reuse this code by
-      # for example specifying custom options and discovery data
-      def call_agent(action, args, opts, disc=:auto, &block)
+      # for example specifying custom options and discovery data.
+      # With broadcast set, a request to given discovery data stays a
+      # broadcast carrying its filter instead of becoming direct requests
+      def call_agent(action, args, opts, disc=:auto, broadcast=false, &block)
         # Handle fire and forget requests and make sure
         # the :process_results value is set appropriately
         #
@@ -920,7 +942,7 @@ module MCollective
         if disc == :auto
           discovered = discover
         else
-          @force_direct_request = true if Config.instance.direct_addressing
+          @force_direct_request = true if Config.instance.direct_addressing && !broadcast
           discovered = disc
         end
 
@@ -933,7 +955,7 @@ module MCollective
         respcount = 0
 
         if !discovered.empty?
-          message.type = :direct_request if @force_direct_request
+          message.type = :direct_request if @force_direct_request && !broadcast
 
           if @progress && !block_given?
             twirl = Progress.new
