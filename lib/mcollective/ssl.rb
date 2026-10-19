@@ -185,8 +185,11 @@ module MCollective
       SSL.base64_encode(string)
     end
 
+    # Without the line break encode64 adds every 60 characters, which costs
+    # two bytes each once escaped inside the transport JSON and nothing to
+    # leave out, since the decoders accept unbroken base64
     def self.base64_encode(string)
-      Base64.encode64(string)
+      Base64.strict_encode64(string)
     end
 
     # base 64 decode a string
