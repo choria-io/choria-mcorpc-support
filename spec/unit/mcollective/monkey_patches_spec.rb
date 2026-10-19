@@ -19,10 +19,14 @@ describe OpenSSL::SSL::SSLContext do
     end
   end
 
-  it 'leaves the openssl default parameters untouched' do
-    defaults = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
-    expect(defaults[:options] & OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS).to eq(0)
-    expect(defaults[:ciphers].to_s.split(':')).not_to include('!SSLv2')
+  # Only the older openssl gems, up to the 3.2 releases, replace the options in
+  # set_params, so this example guards the bare set_params call of puppet's patch
+  # on Ruby 3.3 and older
+  it 'keeps SSLv3 disabled and empty fragments enabled after set_params runs again without options' do
+    subject.set_params
+
+    expect(subject.options & OpenSSL::SSL::OP_NO_SSLv3).to eq(OpenSSL::SSL::OP_NO_SSLv3)
+    expect(subject.options & OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS).to eq(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
   end
 
   it 'keeps empty fragments enabled via the SSLContext#options bitmask' do
