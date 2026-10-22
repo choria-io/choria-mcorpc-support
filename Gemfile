@@ -15,7 +15,7 @@ group :development, :test do
   gem "rake", ">= 12.3.3"
   gem "rdoc"
   gem "rspec", "~> 3.9.0"
-  gem "rubocop", "1.6.1"
+  gem "rubocop", "1.92.1"
   gem "semantic_puppet"
   gem "webmock"
   gem "yard"
