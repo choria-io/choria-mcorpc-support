@@ -331,12 +331,6 @@ module MCollective
       "%s%s%s" % [color(code), msg, color(:reset)]
     end
 
-    # Returns the current ruby version as per RUBY_VERSION, mostly
-    # doing this here to aid testing
-    def self.ruby_version
-      RUBY_VERSION
-    end
-
     def self.mcollective_version
       MCollective::VERSION
     end
@@ -545,50 +539,11 @@ module MCollective
       number == 0 ? 1 : number
     end
 
-    def self.get_hidden_input_on_windows # rubocop:disable Naming/AccessorMethodName
-      require "Win32API"
-
-      # Hook into getch from crtdll. Keep reading all keys till return
-      # or newline is hit.
-      # If key is backspace or delete, then delete the character and update
-      # the buffer.
-      input = ""
-
-      while char = Win32API.new("crtdll", "_getch", [], "I").Call
-        break if [10, 13].include?(char) # return or newline
-
-        if [127, 8].include?(char) # backspace and delete
-          input.slice!(-1, 1) unless input.empty?
-        else
-          input << char.chr
-        end
-      end
-
-      input
-    end
-
-    def self.get_hidden_input_on_unix # rubocop:disable Naming/AccessorMethodName
-      raise "Could not hook to stdin to hide input. If using SSH, try using -t flag while connecting to server." unless $stdin.tty?
-      raise "Could not hide input using stty command." unless system "stty -echo -icanon"
-
-      input = $stdin.gets
-    ensure
-      raise "Could not enable echoing of input. Try executing `stty echo icanon` to debug." unless system "stty echo icanon"
-
-      input
-    end
-
     def self.get_hidden_input(message="Please enter data: ")
       print message unless message.nil?
 
-      if versioncmp(ruby_version, "1.9.3") >= 0
-        require "io/console"
-        input = $stdin.noecho(&:gets)
-      elsif windows? # Use hacks to get hidden input on Ruby <1.9.3
-        input = get_hidden_input_on_windows
-      else
-        input = get_hidden_input_on_unix
-      end
+      require "io/console"
+      input = $stdin.noecho(&:gets)
 
       input.chomp! if input
 

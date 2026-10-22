@@ -755,13 +755,7 @@ module MCollective
 
         extra_chain_cert = cert_chain[1..-1]
 
-        if OpenSSL::SSL::SSLContext.method_defined?(:add_certificate)
-          context.add_certificate(cert, key, extra_chain_cert)
-        else
-          context.cert = OpenSSL::X509::Certificate.new(File.read(client_public_cert))
-          context.key = OpenSSL::PKey::RSA.new(File.read(client_private_key))
-          context.extra_chain_cert = extra_chain_cert
-        end
+        context.add_certificate(cert, key, extra_chain_cert)
 
         context.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
