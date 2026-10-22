@@ -20,7 +20,7 @@
                     "key encipherment",
                     "digital signature"
                 ],
-                "expiry": "262800h"
+                "expiry": "219000h"
             },
             "server": {
                 "usages": [
@@ -29,7 +29,7 @@
                     "key encipherment",
                     "digital signature"
                 ],
-                "expiry": "262800h"
+                "expiry": "219000h"
             }
         }
     }
