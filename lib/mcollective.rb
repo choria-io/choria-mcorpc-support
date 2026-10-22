@@ -1,4 +1,3 @@
-require "rubygems"
 require "json"
 require "timeout"
 require "digest/md5"

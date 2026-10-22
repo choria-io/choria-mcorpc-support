@@ -262,22 +262,6 @@ module MCollective
           key = OpenSSL::X509::Certificate.new(File.read(key)).public_key
         end
 
-        # Ruby < 1.9.3 had a bug where it does not correctly clear the
-        # queue of errors while reading a key.  It tries various ways
-        # to read the key and each failing attempt pushes an error onto
-        # the queue.  With pubkeys only the 3rd attempt pass leaving 2
-        # stale errors on the error queue.
-        #
-        # In 1.9.3 they fixed this by simply discarding the errors after
-        # every attempt.  So we simulate this fix here for older rubies
-        # as without it we get SSL_read errors from the Stomp+TLS sessions
-        #
-        # We do this only on 1.8 relying on 1.9.3 to do the right thing
-        # and we do not support 1.9 less than 1.9.3
-        #
-        # See  http://bugs.ruby-lang.org/issues/4550
-        OpenSSL.errors if Util.ruby_version =~ /^1.8/
-
         key
       when :private
         OpenSSL::PKey::RSA.new(File.read(key), passphrase)

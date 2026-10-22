@@ -1,5 +1,3 @@
-require 'rubygems'
-
 gem 'mocha'
 
 require 'rspec'

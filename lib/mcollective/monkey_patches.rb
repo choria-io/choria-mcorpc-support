@@ -1,30 +1,3 @@
-# start_with? was introduced in 1.8.7, we need to support
-# 1.8.5 and 1.8.6
-class String
-  unless method_defined?("start_with?")
-    def start_with?(str)
-      self[0..(str.length - 1)] == str
-    end
-  end
-end
-
-# Make arrays of Symbols sortable
-class Symbol
-  include Comparable
-
-  unless method_defined?("<=>")
-    def <=>(other)
-      to_s <=> other.to_s
-    end
-  end
-end
-
-# This provides an alias for RbConfig to Config for versions of Ruby older then
-# # version 1.8.5. This allows us to use RbConfig in place of the older Config in
-# # our code and still be compatible with at least Ruby 1.8.1.
-# require 'rbconfig'
-::RbConfig = ::Config unless defined? ::RbConfig
-
 # a method # that walks an array in groups, pass a block to
 # call the block on each sub array
 class Array
@@ -63,74 +36,6 @@ class Array
   end
 end
 
-class String
-  unless method_defined?(:bytes)
-    def bytes(&block)
-      # This should not be necessary, really ...
-      return to_enum(:each_byte) unless block_given?
-
-      each_byte(&block)
-    end
-  end
-end
-
-class Dir
-  unless method_defined?(:mktmpdir)
-    def self.mktmpdir(prefix_suffix=nil, tmpdir=nil)
-      case prefix_suffix
-      when nil
-        prefix = "d"
-        suffix = ""
-      when String
-        prefix = prefix_suffix
-        suffix = ""
-      when Array
-        prefix = prefix_suffix[0]
-        suffix = prefix_suffix[1]
-      else
-        raise ArgumentError, "unexpected prefix_suffix: #{prefix_suffix.inspect}"
-      end
-      tmpdir ||= Dir.tmpdir
-      t = Time.now.strftime("%Y%m%d")
-      n = nil
-      begin
-        path = "#{tmpdir}/#{prefix}#{t}-#{$$}-#{rand(0x100000000).to_s(36)}"
-        path << "-#{n}" if n
-        path << suffix
-        Dir.mkdir(path, 0o700)
-      rescue Errno::EEXIST
-        n ||= 0
-        n += 1
-        retry
-      end
-
-      if block_given?
-        begin
-          yield path
-        ensure
-          FileUtils.remove_entry_secure path
-        end
-      else
-        path
-      end
-    end
-  end
-
-  unless method_defined?(:tmpdir)
-    def self.tmpdir
-      tmp = "."
-      [ENV["TMPDIR"], ENV["TMP"], ENV["TEMP"], "/tmp"].each do |dir|
-        if dir && (stat = File.stat(dir)) && stat.directory? && stat.writable?
-          tmp = dir
-          break
-        end rescue nil
-      end
-
-      File.expand_path(tmp)
-    end
-  end
-end
-
 # Reject all SSLv2 ciphers and all SSLv2 or SSLv3 handshakes by default.
 # The openssl gem freezes DEFAULT_PARAMS from 4.0 on, so the adjusted
 # defaults are passed to set_params on each new context instead of being
@@ -143,9 +48,7 @@ class OpenSSL::SSL::SSLContext # rubocop:disable Style/ClassAndModuleChildren
   def initialize(*args)
     __mcollective_original_initialize(*args)
 
-    options = (DEFAULT_PARAMS[:options] || 0) | OpenSSL::SSL::OP_NO_SSLv2 | OpenSSL::SSL::OP_NO_SSLv3
-    # ruby 1.8.5 doesn't define this constant, but has it on by default
-    options |= OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
+    options = DEFAULT_PARAMS[:options] | OpenSSL::SSL::OP_NO_SSLv2 | OpenSSL::SSL::OP_NO_SSLv3 | OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS
 
     params = {:options => options}
     params[:ciphers] = "#{DEFAULT_PARAMS[:ciphers]}:!SSLv2" if DEFAULT_PARAMS[:ciphers]

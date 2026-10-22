@@ -1,4 +1,3 @@
-require "rubygems"
 require "rubygems/package_task"
 
 spec = Gem::Specification.load('choria-mcorpc-support.gemspec')
