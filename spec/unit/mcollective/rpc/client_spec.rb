@@ -169,6 +169,34 @@ module MCollective
           expect(c.batch_size).to eq(1000)
           expect(c.batch_sleep_time).to eq(30)
         end
+
+        it "should take threaded from the config when the option is absent" do
+          Config.instance.stubs(:threaded).returns(true)
+          c = Client.new("rspec", :options => {:config => "/nonexisting"})
+
+          expect(c.options[:threaded]).to eq(true)
+        end
+
+        it "should honor a false threaded option over the config" do
+          Config.instance.stubs(:threaded).returns(true)
+          c = Client.new("rspec", :options => {:config => "/nonexisting", :threaded => false})
+
+          expect(c.options[:threaded]).to eq(false)
+        end
+
+        it "should take threaded from the config when the option is nil" do
+          Config.instance.stubs(:threaded).returns(true)
+          c = Client.new("rspec", :options => {:config => "/nonexisting", :threaded => nil})
+
+          expect(c.options[:threaded]).to eq(true)
+        end
+
+        it "should honor a true threaded option over the config" do
+          Config.instance.stubs(:threaded).returns(false)
+          c = Client.new("rspec", :options => {:config => "/nonexisting", :threaded => true})
+
+          expect(c.options[:threaded]).to eq(true)
+        end
       end
 
       describe "#validate_request" do
