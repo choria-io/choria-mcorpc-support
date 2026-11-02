@@ -1,5 +1,18 @@
 |Date      |Issue |Description                                                                                              |
 |----------|------|---------------------------------------------------------------------------------------------------------|
+|2026/11/02|      |Release 2.28.0                                                                                           |
+|2026/10/19|241   |Log the assertion and the error when a playbook assertion fails                                          |
+|2026/10/19|241   |Log the assertion and the error when a playbook assertion fails                                          |
+|2026/10/19|      |Remove trailing whitespace in `aio_wrapper_path`                                                         |
+|2026/10/19|      |Honor an explicit threaded false in the client options                                                   |
+|2026/10/19|233   |Encode transport payloads as base64 without line breaks                                                  |
+|2026/10/16|227   |Serialize a direct request once for all of its nodes                                                     |
+|2026/10/16|225   |Validate base64 with String#count instead of a regex                                                     |
+|2026/10/16|223   |Support the openssl 4 gem and Ruby 4.0                                                                   |
+|2026/10/16|      |Bump openvox to 9                                                                                        |
+|2026/03/04|      |Add Ruby 3.4 & 4.0 support                                                                               |
+|2025/10/03|      |Added support for Openvox `execution_wrapper.bat`                                                        |
+|2025/07/09|      |Drop removed `safe_level` kwarg to erb.new                                                               |
 |2024/12/13|      |Release 2.27.0                                                                                           |
 |2026/03/04|      |Switch from puppet to openvox gem                                                                        |
 |2025/07/24|211   |Remove unexpected require from the gemfile                                                               |
