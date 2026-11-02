@@ -1,4 +1,4 @@
-PROJ_VERSION = "2.27.0"
+PROJ_VERSION = "2.28.0"
 
 Gem::Specification.new do |s|
   s.name = "choria-mcorpc-support"
