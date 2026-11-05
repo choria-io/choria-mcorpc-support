@@ -11,7 +11,7 @@ group :development, :test do
   gem "listen", "~> 3"
   gem "mcollective-test"
   gem "mocha", "~> 0.12.2"
-  gem "openvox", "~> 9"
+  gem "openvox", ">= 8", "< 10"
   gem "rake", ">= 12.3.3"
   gem "rdoc"
   gem "rspec", "~> 3.9.0"
