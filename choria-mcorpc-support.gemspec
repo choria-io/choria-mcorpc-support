@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.summary = "Support libraries the Choria Server"
   s.description = "Libraries enabling Ruby support for the Choria Orchestration Server"
 
-  s.required_ruby_version = ">= 3.4"
+  s.required_ruby_version = ">= 3.2"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
